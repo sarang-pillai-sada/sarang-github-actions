@@ -1,0 +1,52 @@
+name: Docker Build and Push to Artifact Registry
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_name:
+        description: "Docker image name"
+        required: false
+        default: "sample-app"
+      image_tag:
+        description: "Docker image tag"
+        required: false
+        default: "latest"
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: sada-seed-2025-sandbox
+  REGION: us-central1
+  REPOSITORY: sada-demo-docker-repo
+
+jobs:
+  docker-build-push:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker auth for Artifact Registry
+        run: gcloud auth configure-docker "${{ env.REGION }}-docker.pkg.dev" --quiet
+
+      - name: Build and push image
+        env:
+          IMAGE_NAME: ${{ github.event.inputs.image_name }}
+          IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+        run: |
+          IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE_NAME}:${IMAGE_TAG}"
+          echo "Pushing image: ${IMAGE_URI}"
+          docker build -t "${IMAGE_URI}" .
+          docker push "${IMAGE_URI}"
