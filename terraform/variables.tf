@@ -21,3 +21,5 @@ variable "repository_description" {
   type        = string
   default     = "Artifact Registry repository provisioned by Terraform via GitHub Actions"
 }
+
+# No-op change to trigger PR plan workflow
